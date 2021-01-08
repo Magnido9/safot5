@@ -39,13 +39,18 @@ fun divied (CONS(ATOM(NUMBER(x)),CONS(ATOM(NUMBER(y)),ATOM(NIL))))=ATOM(NUMBER(x
     fun cdr (CONS(x,xs))=xs
         |cdr _=raise MlispError;(*no list*)
 
+    fun define s_exp  env= 
+        case s_exp of
+        CONS(ATOM (SYMBOL (name)),CONS (ATOM (NUMBER (value)),ATOM NIL)) => (ATOM(NIL), pushNew name env (ATOM(NUMBER(value))))
+        | _ => (ATOM(NIL),env);
+
  
 in
   case exp of
 
         (ATOM(NIL)) =>(ATOM(NIL),env)
         | (ATOM(NUMBER(x))) => (ATOM(NUMBER(x)),env)
-        | (ATOM(SYMBOL(x)))  => (find x env ,env) 
+        | (ATOM(SYMBOL(x)))  => (find x env ,env) (*maybe should be eval after finding the symbol so if we are asked for fuction it will work*)
         | (CONS(ATOM(SYMBOL("+")), sExp)) =>(plus sExp,env)
         | (CONS(ATOM(SYMBOL("-")),sExp)) =>(min sExp,env)
         | (CONS(ATOM(SYMBOL("*")),sExp)) =>(mult sExp,env)
@@ -53,6 +58,7 @@ in
         | (CONS(ATOM(SYMBOL("cons")),sExp)) =>(cons sExp env ,env)
         |(CONS(ATOM(SYMBOL("car")),sExp)) =>(car (semiEval sExp env),env)
         |(CONS(ATOM(SYMBOL("cdr")),sExp)) =>(cdr (semiEval sExp env),env)
+        |(CONS(ATOM(SYMBOL("define")),sExp)) =>(define sExp env)
         handle Undefined=>raise MlispError 
         (*handel Empty=> raise MlispError*)
 
