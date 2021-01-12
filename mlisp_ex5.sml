@@ -1,66 +1,81 @@
-    exception MlispError;
-    datatype Atom =
-   SYMBOL of string | NUMBER of int | NIL;
-   datatype SExp =
-   ATOM of Atom | CONS of (SExp * SExp);
+(*****Excercise 5 - MLISP Interper*****)
+exception MlispError;
 
-
-fun eval exp env= 
+fun eval exp env=
 let
 fun semiEval exp env =
 case exp of
-   CONS(x,ATOM(NIL)) => semiEval x env
- | _ => #1(eval exp env);(*just the S_Exp*)
- 
+CONS(x,ATOM(NIL)) => semiEval x env
+| _ => #1(eval exp env);(*just the S_Exp*)
 
-fun pushNew (name)  (env_list) value= pushEnv (define name (initEnv()) value) env_list;
-fun plus (CONS(ATOM(NUMBER(x)),CONS(ATOM(NUMBER(y)),ATOM(NIL))))=ATOM(NUMBER(x+y))
-    |plus _=raise MlispError;
 
-fun plus_string (CONS(ATOM(NUMBER(x)),CONS(ATOM(NUMBER(y)),ATOM(NIL))))=Int.toString(x+y)
-    |plus_string _=raise MlispError;
+fun pushNew (name)  (env_list) value= pushEnv (define name (initEnv()) value) env_list ;
+fun sExp_to_int (ATOM(NUMBER(x)))=x
+    |sExp_to_int _=raise MlispError;
 
-fun min (CONS(ATOM(NUMBER(x)),CONS(ATOM(NUMBER(y)),ATOM(NIL))))=ATOM(NUMBER(x-y))
-    |min _=raise MlispError;
+fun plus (CONS(x_exp,y_exp)) env =ATOM(NUMBER(sExp_to_int(semiEval x_exp env)+sExp_to_int(semiEval y_exp env)))
+    |plus _ _=raise MlispError;
 
-fun mult (CONS(ATOM(NUMBER(x)),CONS(ATOM(NUMBER(y)),ATOM(NIL))))=ATOM(NUMBER(x*y))
-    |mult _=raise MlispError;
 
-fun divied (CONS(ATOM(NUMBER(x)),CONS(ATOM(NUMBER(y)),ATOM(NIL))))=ATOM(NUMBER(x div y))
-    |divied _=raise MlispError;
+fun min (CONS(x_exp,y_exp)) env =ATOM(NUMBER(sExp_to_int(semiEval x_exp env)-sExp_to_int(semiEval y_exp env)))
+    |min _ _=raise MlispError;
 
-  fun cons (CONS(hd,tl)) env = CONS(semiEval hd env ,semiEval tl env)
-    |cons _  _= raise MlispError;
-  
-   fun car (CONS(ATOM(x),xs))=ATOM(x)
-     |car (CONS(CONS(x,xs),ys))=(car (CONS(x,xs)))
-      |car _ =raise MlispError;(*no list*)
+fun mult (CONS(x_exp,y_exp)) env =ATOM(NUMBER(sExp_to_int(semiEval x_exp env)*sExp_to_int(semiEval y_exp env)))
+    |mult _ _=raise MlispError;
 
-    fun cdr (CONS(x,xs))=xs
-        |cdr _=raise MlispError;(*no list*)
+fun divide (CONS(x_exp,y_exp)) env = ATOM(NUMBER( (sExp_to_int(semiEval x_exp env)) div (sExp_to_int(semiEval y_exp env))))
+    |divide _ _=raise MlispError;
 
-    fun define s_exp  env= 
-        case s_exp of
-        CONS(ATOM (SYMBOL (name)),CONS (ATOM (NUMBER (value)),ATOM NIL)) => (ATOM(NIL), pushNew name env (ATOM(NUMBER(value))))
-        | _ => (ATOM(NIL),env);
 
- 
+fun cons (CONS(hd,tl)) env = CONS(semiEval hd env ,semiEval tl env)
+ |cons _  _= raise MlispError;
+
+fun car (CONS(ATOM(x),xs))=ATOM(x)
+  |car (CONS(CONS(x,xs),ys))=(car (CONS(x,xs)))
+   |car _ =raise MlispError;(*no list*)
+
+ fun cdr (CONS(x,xs))=xs
+     |cdr _=raise MlispError;(*no list*)
+
+ fun define s_exp  env=
+     case s_exp of
+     CONS(ATOM (SYMBOL (name)),CONS (ATOM (NUMBER (value)),ATOM NIL)) => (ATOM(NIL), pushNew name env (ATOM(NUMBER(value))))
+     | CONS(ATOM (SYMBOL (name)),func)=> (ATOM(NIL), pushNew name env func)
+     | _ => (ATOM(NIL),env);
+ fun findfunc env func=find func env handle Undefined=>raise MlispError;
+
+(*Function to replace all appearences of a parmeter with his value*)
+fun replace_token (CONS(ATOM (x),ATOM(NIL)),a,b)=  if( ATOM(x) = ATOM(a)) then CONS(ATOM(b),ATOM(NIL)) else  CONS(ATOM(x),ATOM(NIL))
+ | replace_token   (CONS(ATOM(x),xs),a,b)= if( ATOM(x) = ATOM(a)) then CONS(ATOM(b),replace_token(xs,a,b)) else  CONS(ATOM(x),replace_token(xs,a,b))
+ | replace_token (CONS(xs,ATOM(y)),a,b) = if(ATOM(y)=ATOM(a)) then CONS(replace_token(xs,a,b),ATOM(b)) else  CONS(replace_token(xs,a,b),ATOM(y))
+ | replace_token _ = raise MlispError;
+
+(*Function to apply when a command that is not system defined was called*)
+ fun user_func (CONS(ATOM(x),rest)) (CONS(CONS(ATOM(y),xs),func))=(user_func rest (CONS(xs,(replace_token(func,y,x)))))
+ |  user_func (CONS(ATOM(x),rest)) (CONS(ATOM(y),func))=replace_token(func,y,x)
+ |  user_func (ATOM(x)) (CONS(ATOM(y),func))=replace_token(func,y,x)
+ | user_func _ _= raise MlispError;
+
+
+
 in
-  case exp of
+case exp of
 
-        (ATOM(NIL)) =>(ATOM(NIL),env)
-        | (ATOM(NUMBER(x))) => (ATOM(NUMBER(x)),env)
-        | (ATOM(SYMBOL(x)))  => (find x env ,env) (*maybe should be eval after finding the symbol so if we are asked for fuction it will work*)
-        | (CONS(ATOM(SYMBOL("+")), sExp)) =>(plus sExp,env)
-        | (CONS(ATOM(SYMBOL("-")),sExp)) =>(min sExp,env)
-        | (CONS(ATOM(SYMBOL("*")),sExp)) =>(mult sExp,env)
-        | (CONS(ATOM(SYMBOL("div")),sExp)) =>(divied sExp,env)
-        | (CONS(ATOM(SYMBOL("cons")),sExp)) =>(cons sExp env ,env)
-        |(CONS(ATOM(SYMBOL("car")),sExp)) =>(car (semiEval sExp env),env)
-        |(CONS(ATOM(SYMBOL("cdr")),sExp)) =>(cdr (semiEval sExp env),env)
-        |(CONS(ATOM(SYMBOL("define")),sExp)) =>(define sExp env)
-        handle Undefined=>raise MlispError 
-        (*handel Empty=> raise MlispError*)
+     (ATOM(NIL)) =>(ATOM(NIL),env)
+     |(ATOM(SYMBOL("nil")))=>(ATOM(NIL),env)
+     | (ATOM(NUMBER(x))) => (ATOM(NUMBER(x)),env)
+     | (ATOM(SYMBOL(x)))  => (find x env ,env)
+     | (CONS(ATOM(SYMBOL("+")), sExp)) =>(plus sExp env,env)
+     | (CONS(ATOM(SYMBOL("-")),sExp)) =>(min sExp env,env)
+     | (CONS(ATOM(SYMBOL("*")),sExp)) =>(mult sExp env,env)
+     | (CONS(ATOM(SYMBOL("div")),sExp)) =>(divide sExp env,env)
+     | (CONS(ATOM(SYMBOL("cons")),sExp)) =>(cons sExp env ,env)
+     | (CONS(ATOM(SYMBOL("car")),sExp)) =>(car (semiEval sExp env),env)
+     | (CONS(ATOM(SYMBOL("cdr")),sExp)) =>(cdr (semiEval sExp env),env)
+     | (CONS(ATOM(SYMBOL("define")),sExp)) =>(define sExp env)
+     | (CONS(ATOM(SYMBOL(func)),sExp)) =>((semiEval (user_func sExp (findfunc env func)) env),env)
+     | _ => raise MlispError
+
 
 
 end;
