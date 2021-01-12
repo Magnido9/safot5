@@ -81,20 +81,22 @@ CONS(x,ATOM(NIL)) => semiEval x env
 
 
 fun pushNew (name)  (env_list) value= pushEnv (define name (initEnv()) value) env_list;
-fun plus (CONS(ATOM(NUMBER(x)),CONS(ATOM(NUMBER(y)),ATOM(NIL))))=ATOM(NUMBER(x+y))
- |plus _=raise MlispError;
+fun sExp_to_int (ATOM(NUMBER(x)))=x
+    |sExp_to_int _=raise MlispError;
 
-fun plus_string (CONS(ATOM(NUMBER(x)),CONS(ATOM(NUMBER(y)),ATOM(NIL))))=Int.toString(x+y)
- |plus_string _=raise MlispError;
+fun plus (CONS(x_exp,y_exp)) env =ATOM(NUMBER(sExp_to_int(semiEval x_exp env)+sExp_to_int(semiEval y_exp env)))
+    |plus _ _=raise MlispError;
 
-fun min (CONS(ATOM(NUMBER(x)),CONS(ATOM(NUMBER(y)),ATOM(NIL))))=ATOM(NUMBER(x-y))
- |min _=raise MlispError;
 
-fun mult (CONS(ATOM(NUMBER(x)),CONS(ATOM(NUMBER(y)),ATOM(NIL))))=ATOM(NUMBER(x*y))
- |mult _=raise MlispError;
+fun min (CONS(x_exp,y_exp)) env =ATOM(NUMBER(sExp_to_int(semiEval x_exp env)-sExp_to_int(semiEval y_exp env)))
+    |min _ _=raise MlispError;
 
-fun divide (CONS(ATOM(NUMBER(x)),CONS(ATOM(NUMBER(y)),ATOM(NIL))))=ATOM(NUMBER(x div y))
- |divide _=raise MlispError;
+fun mult (CONS(x_exp,y_exp)) env =ATOM(NUMBER(sExp_to_int(semiEval x_exp env)*sExp_to_int(semiEval y_exp env)))
+    |mult _ _=raise MlispError;
+
+fun divide (CONS(x_exp,y_exp)) env = ATOM(NUMBER( (sExp_to_int(semiEval x_exp env)) div (sExp_to_int(semiEval y_exp env))))
+    |divide _ _=raise MlispError;
+
 
 fun cons (CONS(hd,tl)) env = CONS(semiEval hd env ,semiEval tl env)
  |cons _  _= raise MlispError;
@@ -130,12 +132,13 @@ in
 case exp of
 
      (ATOM(NIL)) =>(ATOM(NIL),env)
+     |(ATOM(SYMBOL("nil")))=>(ATOM(NIL),env)
      | (ATOM(NUMBER(x))) => (ATOM(NUMBER(x)),env)
      | (ATOM(SYMBOL(x)))  => (find x env ,env) (*maybe should be eval after finding the symbol so if we are asked for function it will work*)
-     | (CONS(ATOM(SYMBOL("+")), sExp)) =>(plus sExp,env)
-     | (CONS(ATOM(SYMBOL("-")),sExp)) =>(min sExp,env)
-     | (CONS(ATOM(SYMBOL("*")),sExp)) =>(mult sExp,env)
-     | (CONS(ATOM(SYMBOL("div")),sExp)) =>(divide sExp,env)
+     | (CONS(ATOM(SYMBOL("+")), sExp)) =>(plus sExp env,env)
+     | (CONS(ATOM(SYMBOL("-")),sExp)) =>(min sExp env,env)
+     | (CONS(ATOM(SYMBOL("*")),sExp)) =>(mult sExp env,env)
+     | (CONS(ATOM(SYMBOL("div")),sExp)) =>(divide sExp env,env)
      | (CONS(ATOM(SYMBOL("cons")),sExp)) =>(cons sExp env ,env)
      | (CONS(ATOM(SYMBOL("car")),sExp)) =>(car (semiEval sExp env),env)
      | (CONS(ATOM(SYMBOL("cdr")),sExp)) =>(cdr (semiEval sExp env),env)
